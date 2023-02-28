@@ -694,6 +694,15 @@ environment_plist(
 )
 
 environment_plist(
+    name = "environment_plist_catalyst",
+    platform_type = "catalyst",
+    # Used by the rule implementations, so it needs to be public; but
+    # should be considered an implementation detail of the rules and
+    # not used by other things.
+    visibility = ["//visibility:public"],
+)
+
+environment_plist(
     name = "environment_plist_watchos",
     platform_type = "watchos",
     # Used by the rule implementations, so it needs to be public; but

@@ -46,6 +46,10 @@ load(
     _macos_spotlight_importer = "macos_spotlight_importer",
     _macos_xpc_service = "macos_xpc_service",
 )
+load(
+    "@build_bazel_rules_apple//apple/internal:catalyst_rules.bzl",
+    _maccatalyst_application = "maccatalyst_application",
+)
 
 # TODO(b/118104491): Remove these re-exports and move the rule definitions into this file.
 macos_quick_look_plugin = _macos_quick_look_plugin
@@ -189,6 +193,19 @@ def macos_extension(name, **kwargs):
     features.append("link_cocoa")
 
     _macos_extension(
+        name = name,
+        features = features,
+        **bundling_args
+    )
+
+def maccatalyst_application(name, **kwargs):
+    # buildifier: disable=function-docstring-args
+    """Packages a Mac Catalyst application."""
+    bundling_args = dict(kwargs)
+    features = bundling_args.pop("features", [])
+    #features.append("link_cocoa")
+
+    _maccatalyst_application(
         name = name,
         features = features,
         **bundling_args

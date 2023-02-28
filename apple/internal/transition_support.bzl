@@ -19,6 +19,7 @@ load("@bazel_skylib//lib:dicts.bzl", "dicts")
 _PLATFORM_TYPE_TO_CPU_FLAG = {
     "ios": "//command_line_option:ios_multi_cpus",
     "macos": "//command_line_option:macos_cpus",
+    "catalyst": "//command_line_option:catalyst_cpus",
     "tvos": "//command_line_option:tvos_cpus",
     "watchos": "//command_line_option:watchos_cpus",
 }
@@ -28,6 +29,7 @@ _PLATFORM_TYPE_TO_CPU_FLAG = {
 _PLATFORM_TYPE_TO_DEFAULT_CPU = {
     "ios": "x86_64",
     "macos": "x86_64",
+    "catalyst": "x86_64",
     "tvos": "x86_64",
     "watchos": "i386",
 }
@@ -111,6 +113,16 @@ def _cpu_string(*, cpu, platform_type, settings = {}):
         if cpu_value.startswith("darwin_"):
             return cpu_value
         return "darwin_x86_64"
+    if platform_type == "catalyst":
+        if cpu:
+            return "catalyst_{}".format(cpu)
+        catalyst_cpus = settings["//command_line_option:catalyst_cpus"]
+        if catalyst_cpus:
+            return "catalyst_{}".format(catalyst_cpus[0])
+        cpu_value = settings["//command_line_option:cpu"]
+        if cpu_value.startswith("catalyst_"):
+            return cpu_value
+        return "catalyst_x86_64"
     if platform_type == "tvos":
         if cpu:
             return "tvos_{}".format(cpu)
@@ -345,6 +357,7 @@ _apple_rule_base_transition_inputs = _apple_rule_common_transition_inputs + [
     "//command_line_option:cpu",
     "//command_line_option:ios_multi_cpus",
     "//command_line_option:macos_cpus",
+    "//command_line_option:catalyst_cpus",
     "//command_line_option:tvos_cpus",
     "//command_line_option:watchos_cpus",
 ]
@@ -373,6 +386,7 @@ _apple_rule_base_transition_outputs = [
 _apple_universal_binary_rule_transition_outputs = _apple_rule_base_transition_outputs + [
     "//command_line_option:ios_multi_cpus",
     "//command_line_option:macos_cpus",
+    "//command_line_option:catalyst_cpus",
     "//command_line_option:tvos_cpus",
     "//command_line_option:watchos_cpus",
 ]
@@ -581,7 +595,7 @@ def _xcframework_transition_impl(settings, attr):
     """Starlark 1:2+ transition for generation of multiple frameworks for the current target."""
     output_dictionary = {}
 
-    for platform_type in ["ios", "tvos", "watchos", "macos"]:
+    for platform_type in ["ios", "tvos", "watchos", "macos", "catalyst"]:
         if not hasattr(attr, platform_type):
             continue
         target_environments = ["device"]

@@ -225,7 +225,7 @@ def compile_asset_catalog(
         "--platform",
         actool_platform,
         "--minimum-deployment-target",
-        platform_prerequisites.minimum_os,
+        "12.3", #platform_prerequisites.minimum_os,
         "--compress-pngs",
     ]
 

@@ -73,6 +73,7 @@ File object that represents a directory containing the Swift dylibs to package f
 # truth https://github.com/apple/swift/blob/998d3518938bd7229e7c5e7b66088d0501c02051/lib/Basic/Platform.cpp#L82-L105
 _MIN_OS_PLATFORM_SWIFT_PRESENCE = {
     "ios": apple_common.dotted_version("15.0"),
+    "catalyst": apple_common.dotted_version("15.0"),
     "macos": apple_common.dotted_version("12.0"),
     "tvos": apple_common.dotted_version("15.0"),
     "watchos": apple_common.dotted_version("8.0"),

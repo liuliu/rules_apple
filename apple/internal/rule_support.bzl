@@ -605,6 +605,29 @@ _RULE_TYPE_DESCRIPTORS = {
             ],
         ),
     },
+    "catalyst": {
+        # maccatalyst_application
+        apple_product_type.application: _describe_rule_type(
+            allowed_device_families = ["mac"],
+            allows_locale_trimming = True,
+            app_icon_parent_extension = ".xcassets",
+            app_icon_extension = ".appiconset",
+            bundle_extension = ".app",
+            bundle_locations = _DEFAULT_MACOS_BUNDLE_LOCATIONS,
+            bundle_package_type = bundle_package_type.application,
+            deps_cfg = apple_common.multi_arch_split,
+            is_executable = True,
+            product_type = apple_product_type.application,
+            provisioning_profile_extension = ".mobileprovision",
+            requires_pkginfo = True,
+            requires_signing_for_device = True,
+            rpaths = [
+                # Application binaries live in Application.app/Contents/MacOS/Application
+                # Frameworks are packaged in Application.app/Contents/Frameworks
+                "@executable_path/../Frameworks",
+            ],
+        ),
+    },
     "tvos": {
         # tvos_application
         apple_product_type.application: _describe_rule_type(

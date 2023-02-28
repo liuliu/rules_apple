@@ -748,6 +748,227 @@ not in the top-level bundle.
 
     return attrs
 
+def _get_maccatalyst_attrs(rule_descriptor):
+    """Returns a list of dictionaries with attributes for the iOS platform."""
+    attrs = []
+
+    # TODO(kaipi): Add support for all valid product types for iOS.
+    if rule_descriptor.product_type == apple_product_type.messages_sticker_pack_extension:
+        attrs.append({
+            "sticker_assets": attr.label_list(
+                allow_files = True,
+                doc = """
+List of sticker files to bundle. The collection of assets should be under a folder named
+`*.*.xcstickers`. The icons go in a `*.stickersiconset` (instead of `*.appiconset`); and the files
+for the stickers should all be in Sticker Pack directories, so `*.stickerpack/*.sticker` or
+`*.stickerpack/*.stickersequence`.
+""",
+            ),
+        })
+    elif rule_descriptor.product_type == apple_product_type.messages_application:
+        attrs.append({
+            "extension": attr.label(
+                mandatory = True,
+                providers = [
+                    [AppleBundleInfo, IosImessageExtensionBundleInfo],
+                    [AppleBundleInfo, IosStickerPackExtensionBundleInfo],
+                ],
+                doc = """
+Single label referencing either an ios_imessage_extension or ios_sticker_pack_extension target.
+Required.
+""",
+            ),
+        })
+    elif rule_descriptor.product_type == apple_product_type.framework:
+        attrs.append({
+            # TODO(kaipi): This attribute is not publicly documented, but it is tested in
+            # http://github.com/bazelbuild/rules_apple/test/ios_framework_test.sh?l=79. Figure out
+            # what to do with this.
+            "hdrs": attr.label_list(
+                allow_files = [".h"],
+            ),
+            "extension_safe": attr.bool(
+                default = False,
+                doc = """
+If true, compiles and links this framework with `-application-extension`, restricting the binary to
+use only extension-safe APIs.
+""",
+            ),
+            "bundle_only": attr.bool(
+                default = False,
+                doc = """
+Avoid linking the dynamic framework, but still include it in the app. This is useful when you want
+to manually dlopen the framework at runtime.
+""",
+            ),
+        })
+    elif rule_descriptor.product_type == apple_product_type.static_framework:
+        attrs.append({
+            "_emitswiftinterface": attr.bool(
+                default = True,
+                doc = "Private attribute to generate Swift interfaces for static frameworks.",
+            ),
+            "hdrs": attr.label_list(
+                allow_files = [".h"],
+                doc = """
+A list of `.h` files that will be publicly exposed by this framework. These headers should have
+framework-relative imports, and if non-empty, an umbrella header named `%{bundle_name}.h` will also
+be generated that imports all of the headers listed here.
+""",
+            ),
+            "umbrella_header": attr.label(
+                allow_single_file = [".h"],
+                doc = """
+An optional single .h file to use as the umbrella header for this framework. Usually, this header
+will have the same name as this target, so that clients can load the header using the #import
+<MyFramework/MyFramework.h> format. If this attribute is not specified (the common use case), an
+umbrella header will be generated under the same name as this target.
+""",
+            ),
+            "avoid_deps": attr.label_list(
+                cfg = apple_common.multi_arch_split,
+                doc = """
+A list of library targets on which this framework depends in order to compile, but the transitive
+closure of which will not be linked into the framework's binary.
+""",
+            ),
+            "exclude_resources": attr.bool(
+                default = False,
+                doc = """
+Indicates whether resources should be excluded from the bundle. This can be used to avoid
+unnecessarily bundling resources if the static framework is being distributed in a different
+fashion, such as a Cocoapod.
+""",
+            ),
+        })
+    elif rule_descriptor.product_type == apple_product_type.application:
+        attrs.append({
+            "app_clips": attr.label_list(
+                providers = [[AppleBundleInfo, IosAppClipBundleInfo]],
+                doc = """
+A list of iOS app clips to include in the final application bundle.
+""",
+            ),
+            "extensions": attr.label_list(
+                providers = [[AppleBundleInfo, IosExtensionBundleInfo]],
+                doc = """
+A list of iOS application extensions to include in the final application bundle.
+""",
+            ),
+            "launch_storyboard": attr.label(
+                allow_single_file = [".storyboard", ".xib"],
+                doc = """
+The `.storyboard` or `.xib` file that should be used as the launch screen for the application. The
+provided file will be compiled into the appropriate format (`.storyboardc` or `.nib`) and placed in
+the root of the final bundle. The generated file will also be registered in the bundle's
+Info.plist under the key `UILaunchStoryboardName`.
+""",
+            ),
+            "watch_application": attr.label(
+                providers = [[AppleBundleInfo, WatchosApplicationBundleInfo]],
+                doc = """
+A `watchos_application` target that represents an Apple Watch application that should be embedded in
+the application bundle.
+""",
+            ),
+            "_runner_template": attr.label(
+                cfg = "exec",
+                allow_single_file = True,
+                default = Label("@build_bazel_rules_apple//apple/internal/templates:ios_sim_template"),
+            ),
+            "include_symbols_in_bundle": attr.bool(
+                default = False,
+                doc = """
+    If true and --output_groups=+dsyms is specified, generates `$UUID.symbols`
+    files from all `{binary: .dSYM, ...}` pairs for the application and its
+    dependencies, then packages them under the `Symbols/` directory in the
+    final application bundle.
+    """,
+            ),
+        })
+    elif rule_descriptor.product_type == apple_product_type.app_clip:
+        attrs.append({
+            "launch_storyboard": attr.label(
+                allow_single_file = [".storyboard", ".xib"],
+                doc = """
+The `.storyboard` or `.xib` file that should be used as the launch screen for the app clip. The
+provided file will be compiled into the appropriate format (`.storyboardc` or `.nib`) and placed in
+the root of the final bundle. The generated file will also be registered in the bundle's
+Info.plist under the key `UILaunchStoryboardName`.
+""",
+            ),
+            "_runner_template": attr.label(
+                cfg = "exec",
+                allow_single_file = True,
+                default = Label("@build_bazel_rules_apple//apple/internal/templates:ios_sim_template"),
+            ),
+        })
+    elif _is_test_product_type(rule_descriptor.product_type):
+        required_providers = [
+            [AppleBundleInfo, IosApplicationBundleInfo],
+            [AppleBundleInfo, IosExtensionBundleInfo],
+        ]
+        test_host_mandatory = False
+        if rule_descriptor.product_type == apple_product_type.ui_test_bundle:
+            required_providers.append([AppleBundleInfo, IosImessageApplicationBundleInfo])
+            test_host_mandatory = True
+
+        attrs.append({
+            "test_host": attr.label(
+                aspects = [framework_provider_aspect],
+                mandatory = test_host_mandatory,
+                providers = required_providers,
+            ),
+            "_swizzle_absolute_xcttestsourcelocation": attr.label(
+                default = Label(
+                    "@build_bazel_apple_support//lib:swizzle_absolute_xcttestsourcelocation",
+                ),
+            ),
+        })
+
+    # TODO(kaipi): Once all platforms have framework rules, move this into
+    # _common_binary_linking_attrs().
+    if rule_descriptor.requires_deps:
+        extra_args = {}
+        if (rule_descriptor.product_type == apple_product_type.application or
+            rule_descriptor.product_type == apple_product_type.app_clip):
+            extra_args["aspects"] = [framework_provider_aspect]
+
+        attrs.append({
+            "frameworks": attr.label_list(
+                providers = [[AppleBundleInfo, IosFrameworkBundleInfo]],
+                doc = """
+A list of framework targets (see
+[`ios_framework`](https://github.com/bazelbuild/rules_apple/blob/master/doc/rules-ios.md#ios_framework))
+that this target depends on.
+""",
+                **extra_args
+            ),
+        })
+
+    # TODO(b/XXXXXXXX): `sdk_frameworks` was never documented on `ios_application` but it leaked
+    # through due to the old macro passing it to the underlying `apple_binary`. Support this
+    # temporarily for a limited set of product types until we can migrate teams off the attribute,
+    # once explicit build targets are used to propagate linking information for system frameworks.
+    if (rule_descriptor.product_type == apple_product_type.application or
+        rule_descriptor.product_type == apple_product_type.app_extension):
+        attrs.append({
+            "sdk_frameworks": attr.string_list(
+                allow_empty = True,
+                doc = """
+Names of SDK frameworks to link with (e.g., `AddressBook`, `QuartzCore`).
+`UIKit` and `Foundation` are always included, even if this attribute is
+provided and does not list them.
+
+This attribute is discouraged; in general, targets should list system
+framework dependencies in the library targets where that framework is used,
+not in the top-level bundle.
+""",
+            ),
+        })
+
+    return attrs
+
 def _get_macos_attrs(rule_descriptor):
     """Returns a list of dictionaries with attributes for the macOS platform."""
     attrs = []
@@ -1206,6 +1427,7 @@ binaries/libraries will be created combining all architectures specified by
 
 *   `ios`: architectures gathered from `--ios_multi_cpus`.
 *   `macos`: architectures gathered from `--macos_cpus`.
+*   `catalyst`: architectures gathered from `--catalyst_cpus`.
 *   `tvos`: architectures gathered from `--tvos_cpus`.
 *   `watchos`: architectures gathered from `--watchos_cpus`.
 """,
@@ -1303,6 +1525,8 @@ def _create_apple_bundling_rule(
         rule_attrs.extend(_get_ios_attrs(rule_descriptor))
     elif platform_type == "macos":
         rule_attrs.extend(_get_macos_attrs(rule_descriptor))
+    elif platform_type == "catalyst":
+        rule_attrs.extend(_get_maccatalyst_attrs(rule_descriptor))
     elif platform_type == "tvos":
         rule_attrs.extend(_get_tvos_attrs(rule_descriptor))
     elif platform_type == "watchos":
